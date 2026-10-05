@@ -12,9 +12,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 
-# ============================================================
-# 1. GET AVAILABLE TRANSCRIPTS
-# ============================================================
+
+# Get available transcripts
 
 def get_available_transcripts(video_id):
 
@@ -36,9 +35,7 @@ def get_available_transcripts(video_id):
     return transcripts
 
 
-# ============================================================
-# 2. SELECT TRANSCRIPT
-# ============================================================
+# Select transcript
 
 def select_transcript(transcripts):
 
@@ -57,9 +54,7 @@ def select_transcript(transcripts):
     return None
 
 
-# ============================================================
-# 3. EXTRACT TRANSCRIPT
-# ============================================================
+# Extract transcript
 
 def extract_transcript(video_id):
 
@@ -73,11 +68,6 @@ def extract_transcript(video_id):
 
             return None, None
 
-
-        # ----------------------------------------------------
-        # Show available transcripts
-        # ----------------------------------------------------
-
         print("\nAvailable transcripts:\n")
 
         for transcript in transcripts:
@@ -88,97 +78,60 @@ def extract_transcript(video_id):
                 f"- Generated: {transcript['is_generated']}"
             )
 
-
-        # ----------------------------------------------------
-        # Select English or Hindi transcript
-        # ----------------------------------------------------
-
         selected = select_transcript(transcripts)
 
         if selected is None:
 
-            print(
-                "\nNo English or Hindi transcript found."
-            )
+            print("\nNo English or Hindi transcript found.")
 
             return None, None
-
 
         print("\nSelected transcript:")
         print(selected.language)
 
-
-        # ----------------------------------------------------
-        # Fetch transcript
-        # ----------------------------------------------------
-
         fetched_transcript = selected.fetch()
-
-
-        # ----------------------------------------------------
-        # Convert transcript into one text string
-        # ----------------------------------------------------
 
         transcript_text = " ".join(
             snippet.text
             for snippet in fetched_transcript
         )
 
-
         return transcript_text, selected.language_code
-
 
     except TranscriptsDisabled:
 
-        print(
-            "Transcripts are disabled for this video."
-        )
+        print("Transcripts are disabled for this video.")
 
         return None, None
-
 
     except NoTranscriptFound:
 
-        print(
-            "No suitable transcript found."
-        )
+        print("No suitable transcript found.")
 
         return None, None
-
 
     except RequestBlocked:
 
-        print(
-            "YouTube has blocked this request/IP."
-        )
-
-        print(
-            "Try running the script locally."
-        )
+        print("YouTube has blocked this request/IP.")
+        print("Try running the script locally.")
 
         return None, None
 
 
-# ============================================================
-# 4. LOAD HINDI → ENGLISH TRANSLATION MODEL
-# ============================================================
+# Load Hindi to English translation model
 
 MODEL_NAME = "Helsinki-NLP/opus-mt-hi-en"
-
 
 tokenizer = AutoTokenizer.from_pretrained(
     MODEL_NAME
 )
-
 
 model = AutoModelForSeq2SeqLM.from_pretrained(
     MODEL_NAME
 )
 
 
-# ============================================================
-# 5. TRANSLATE HINDI → ENGLISH
-# ============================================================
+# Translate Hindi to English
 
 def translate_hindi_to_english(hindi_text):
 
@@ -189,24 +142,19 @@ def translate_hindi_to_english(hindi_text):
         truncation=True
     )
 
-
     translated_tokens = model.generate(
         **inputs
     )
-
 
     english_text = tokenizer.decode(
         translated_tokens[0],
         skip_special_tokens=True
     )
 
-
     return english_text
 
 
-# ============================================================
-# 6. GET ENGLISH TRANSCRIPT
-# ============================================================
+# Get English transcript
 
 def get_english_transcript(video_id):
 
@@ -214,51 +162,26 @@ def get_english_transcript(video_id):
         video_id
     )
 
-
     if transcript_text is None:
 
         return None
 
-
-    # --------------------------------------------------------
-    # English transcript
-    # --------------------------------------------------------
-
     if language_code == "en":
 
-        print(
-            "\nEnglish transcript found."
-        )
+        print("\nEnglish transcript found.")
 
         return transcript_text
 
-
-    # --------------------------------------------------------
-    # Hindi transcript
-    # --------------------------------------------------------
-
     elif language_code == "hi":
 
-        print(
-            "\nHindi transcript found."
-        )
-
-        print(
-            "Translating Hindi → English..."
-        )
-
+        print("\nHindi transcript found.")
+        print("Translating Hindi → English...")
 
         english_text = translate_hindi_to_english(
             transcript_text
         )
 
-
         return english_text
-
-
-    # --------------------------------------------------------
-    # Unsupported language
-    # --------------------------------------------------------
 
     else:
 
@@ -269,39 +192,21 @@ def get_english_transcript(video_id):
         return None
 
 
-
-# ============================================================
-# 7. MAIN PROGRAM
-# ============================================================
-
-# ============================================================
-# MAIN PROGRAM
-# ============================================================
+# Main program
 
 if __name__ == "__main__":
 
-    # --------------------------------------------------------
-    # VIDEO ID
-    # Change ONLY this value for another video
-    # --------------------------------------------------------
-
+    # Video ID
     video_id = "d6mAi5kHsxc"
 
-
-    # --------------------------------------------------------
-    # 1. Get English transcript
-    # --------------------------------------------------------
-
+    # Get English transcript
     english_transcript = get_english_transcript(
         video_id
     )
 
-
     if english_transcript:
 
-        # ====================================================
-        # 2. TEXT CHUNKING
-        # ====================================================
+        # Text chunking
 
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
@@ -312,7 +217,6 @@ if __name__ == "__main__":
             english_transcript
         )
 
-
         print("\n" + "=" * 60)
         print("TRANSCRIPT CHUNKS")
         print("=" * 60)
@@ -321,33 +225,24 @@ if __name__ == "__main__":
             f"Total chunks: {len(chunks)}\n"
         )
 
-
         for i, chunk in enumerate(
             chunks,
             start=1
         ):
 
-            print(
-                f"--- Chunk {i} ---"
-            )
-
+            print(f"--- Chunk {i} ---")
             print(chunk)
-
             print()
 
 
-        # ====================================================
-        # 3. CREATE HUGGING FACE EMBEDDINGS
-        # ====================================================
+        # Create embeddings
 
         embedding_model = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
 
-        # ====================================================
-        # 4. CREATE DOCUMENTS WITH CHUNK IDs
-        # ====================================================
+        # Create documents
 
         documents = []
 
@@ -358,7 +253,6 @@ if __name__ == "__main__":
 
             document = Document(
                 page_content=chunk,
-
                 metadata={
                     "chunk_id": f"chunk_{i}"
                 }
@@ -367,9 +261,7 @@ if __name__ == "__main__":
             documents.append(document)
 
 
-        # ====================================================
-        # 5. CREATE FAISS VECTOR STORE
-        # ====================================================
+        # Create FAISS vector store
 
         vector_store = FAISS.from_documents(
             documents,
@@ -377,14 +269,11 @@ if __name__ == "__main__":
         )
 
 
-        # ====================================================
-        # 6. DISPLAY VECTOR STORE DOCUMENTS
-        # ====================================================
+        # Display vector store documents
 
         print("\n" + "=" * 60)
         print("VECTOR STORE DOCUMENTS")
         print("=" * 60)
-
 
         for document in documents:
 
