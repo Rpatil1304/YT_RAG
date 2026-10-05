@@ -1,0 +1,11 @@
+youtube-transcript-api
+transformers
+torch
+sentencepiece
+sacremoses
+langchain-text-splitters
+langchain-huggingface
+langchain-community
+langchain-core
+faiss-cpu
+sentence-transformers
