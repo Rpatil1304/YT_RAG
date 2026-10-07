@@ -11,6 +11,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEndpoint
+from langchain_core.prompts import PromptTemplate
 
 
 # Get available transcripts
@@ -197,12 +199,16 @@ def get_english_transcript(video_id):
 if __name__ == "__main__":
 
     # Video ID
+
     video_id = "d6mAi5kHsxc"
 
+
     # Get English transcript
+
     english_transcript = get_english_transcript(
         video_id
     )
+
 
     if english_transcript:
 
@@ -217,6 +223,7 @@ if __name__ == "__main__":
             english_transcript
         )
 
+
         print("\n" + "=" * 60)
         print("TRANSCRIPT CHUNKS")
         print("=" * 60)
@@ -224,6 +231,7 @@ if __name__ == "__main__":
         print(
             f"Total chunks: {len(chunks)}\n"
         )
+
 
         for i, chunk in enumerate(
             chunks,
@@ -269,20 +277,101 @@ if __name__ == "__main__":
         )
 
 
-        # Display vector store documents
+        # Create retriever
+
+        retriever = vector_store.as_retriever(
+            search_type="similarity",
+            search_kwargs={
+                "k": 3
+            }
+        )
+
+        # Load LLM
+
+        llm = HuggingFaceEndpoint(
+            repo_id="meta-llama/Llama-3.1-8B-Instruct",
+            task="text-generation",
+            max_new_tokens=512,
+            temperature=0.2
+        )
+
+
+        # Create prompt
+
+        prompt = PromptTemplate(
+            template="""
+        Answer the question using only the provided context.
+
+        If the answer is not present in the context, say:
+        "I don't know based on the provided video."
+
+        Context:
+        {context}
+
+        Question:
+        {question}
+
+        Answer:
+        """,
+            input_variables=["context", "question"]
+        )
+        # User query
+
+        query = "What is the main topic of the video?"
+
+
+        # Retrieve relevant documents
+
+        retrieved_documents = retriever.invoke(
+            query
+        )
+
+
+        # Display retrieved documents
 
         print("\n" + "=" * 60)
-        print("VECTOR STORE DOCUMENTS")
+        print("RETRIEVED DOCUMENTS")
         print("=" * 60)
 
-        for document in documents:
+
+        for document in retrieved_documents:
 
             print(
                 f"ID: {document.metadata['chunk_id']}"
             )
 
             print(
-                f"Text: {document.page_content[:100]}..."
+                f"Text: {document.page_content}"
             )
 
             print()
+                # Create context
+
+        context = "\n\n".join(
+            document.page_content
+            for document in retrieved_documents
+        )
+
+
+        # Create formatted prompt
+
+        formatted_prompt = prompt.format(
+            context=context,
+            question=query
+        )
+
+
+        # Generate answer
+
+        answer = llm.invoke(
+            formatted_prompt
+        )
+
+
+        # Display answer
+
+        print("\n" + "=" * 60)
+        print("ANSWER")
+        print("=" * 60)
+
+        print(answer)
