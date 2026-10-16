@@ -13,6 +13,9 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEndpoint
 from langchain_core.prompts import PromptTemplate
+import os
+from huggingface_hub import InferenceClient
+from langchain_openai import ChatOpenAI
 
 
 # Get available transcripts
@@ -281,18 +284,18 @@ if __name__ == "__main__":
 
         retriever = vector_store.as_retriever(
             search_type="similarity",
-            search_kwargs={
-                "k": 3
-            }
+            search_kwargs={"k": 3}
         )
+
 
         # Load LLM
 
-        llm = HuggingFaceEndpoint(
-            repo_id="meta-llama/Llama-3.1-8B-Instruct",
-            task="text-generation",
-            max_new_tokens=512,
-            temperature=0.2
+        llm = ChatOpenAI(
+            base_url="http://localhost:8080/v1",
+            api_key="local",
+            model="Qwen2.5-0.5B-Instruct-GGUF",
+            temperature=0.2,
+            max_tokens=256
         )
 
 
@@ -315,16 +318,16 @@ if __name__ == "__main__":
         """,
             input_variables=["context", "question"]
         )
+
+
         # User query
 
         query = "What is the main topic of the video?"
 
 
-        # Retrieve relevant documents
+        # Retrieve documents
 
-        retrieved_documents = retriever.invoke(
-            query
-        )
+        retrieved_documents = retriever.invoke(query)
 
 
         # Display retrieved documents
@@ -333,19 +336,14 @@ if __name__ == "__main__":
         print("RETRIEVED DOCUMENTS")
         print("=" * 60)
 
-
         for document in retrieved_documents:
 
-            print(
-                f"ID: {document.metadata['chunk_id']}"
-            )
-
-            print(
-                f"Text: {document.page_content}"
-            )
-
+            print(f"ID: {document.metadata['chunk_id']}")
+            print(f"Text: {document.page_content}")
             print()
-                # Create context
+
+
+        # Create context
 
         context = "\n\n".join(
             document.page_content
@@ -353,7 +351,7 @@ if __name__ == "__main__":
         )
 
 
-        # Create formatted prompt
+        # Format prompt
 
         formatted_prompt = prompt.format(
             context=context,
@@ -363,15 +361,9 @@ if __name__ == "__main__":
 
         # Generate answer
 
-        answer = llm.invoke(
-            formatted_prompt
-        )
+        response = llm.invoke(formatted_prompt)
 
+        answer = response.content
 
-        # Display answer
-
-        print("\n" + "=" * 60)
-        print("ANSWER")
-        print("=" * 60)
-
+        print("\nAnswer:")
         print(answer)
